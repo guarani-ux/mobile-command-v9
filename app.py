@@ -5,24 +5,23 @@ import PyPDF2
 from docx import Document
 
 # --- 1. CONFIGURATION (Mobile Optimized) ---
-st.set_page_config(page_title="Content Creator", layout="centered", page_icon="📱")
+st.set_page_config(page_title="Studio V10", layout="centered", page_icon="🎬")
 
-# CSS to make inputs look better on mobile
+# CSS: Better font sizes for mobile tapping
 st.markdown("""
     <style>
     .stTextArea textarea {font-size: 16px !important;}
     .stSelectbox div[data-baseweb="select"] > div {font-size: 16px !important;}
+    .stButton button {height: 3em !important;}
     </style>
     """, unsafe_allow_html=True)
 
-st.title("📱 Content Creator")
+st.title("🎬 Studio V10: Full House")
 
 # --- 2. AUTHENTICATION ---
-# Check for secrets first, then fallback to manual entry
 if "OPENAI_API_KEY" in st.secrets:
     api_key = st.secrets["OPENAI_API_KEY"]
 else:
-    # If no secret, ask for key in the main body (not sidebar)
     api_key = st.text_input("🔑 Enter OpenAI API Key:", type="password")
     if not api_key:
         st.warning("Please enter your key to unlock the studio.")
@@ -51,76 +50,90 @@ def read_file(uploaded_file):
         return f"Error: {e}"
     return text
 
-# --- 4. MAIN MOBILE INTERFACE (Vertical Scroll) ---
+# --- 4. MAIN INTERFACE (Vertical Scroll) ---
 
-st.info("👇 **Phase 1: Input Data**")
-uploaded_file = st.file_uploader("Upload Brief / Context", type=["pdf", "docx", "txt", "csv"])
+st.info("👇 **Phase 1: Intel Input**")
+uploaded_file = st.file_uploader("Upload Script/Brief/Logistics", type=["pdf", "docx", "txt", "csv"])
+text_objective = st.text_area("Context / Notes:", placeholder="e.g. 50 person crew, outdoor shoot, rainy forecast...", height=120)
 
-text_objective = st.text_area("Objective / Context:", placeholder="Describe what you need to build...", height=120)
-
-# DIGITAL LEAD CONTROLS (Hidden in Expander to save space)
-with st.expander("🛠️ Advanced Settings (Tech & Budget)"):
-    audience = st.text_input("Target Audience:", placeholder="e.g. Stakeholders")
-    tech_stack = st.text_input("Tech Stack:", placeholder="e.g. React, WordPress")
-    budget = st.text_input("Budget/Resources:", placeholder="e.g. 2 Devs, $50k")
-    depth = st.select_slider("Depth:", options=["Draft", "Standard", "Comprehensive"], value="Standard")
+# EXPANDER: Advanced Constraints
+with st.expander("🛠️ Crew & Tech Specs"):
+    audience = st.text_input("Audience/Client:", placeholder="e.g. Netflix / Corporate")
+    logistics = st.text_input("Logistics/Constraints:", placeholder="e.g. 3 Locations, $10k Budget")
+    depth = st.select_slider("Depth:", options=["Quick List", "Standard", "Detailed Protocol"], value="Standard")
 
 st.write("---")
-st.info("👇 **Phase 2: Select Output**")
+st.info("👇 **Phase 2: Select Role & Output**")
 
+# NEW: CATEGORIZED DROPDOWN
 package_type = st.selectbox("Choose Protocol:", [
-    "Project Brief / Scope of Work",
-    "Digital Product Launch (Web/App)",
-    "Jira/Asana Ticket Generator",
-    "SEO & Metadata Strategy",
-    "Full Video Production Bible",
-    "Marketing Campaign Launch",
-    "Crisis Communications Suite",
-    "Executive Strategy Deck",
-    "Social Media Blast (Mobile)"
+    # --- PRODUCTION ASSISTANT ---
+    "PA: Daily Call Sheet",
+    "PA: Gear & Load-in Checklist",
+    "PA: Location Scout Report",
+    "PA: Crafty & Dietary Log",
+    
+    # --- CREATIVE DIRECTOR ---
+    "CD: Visual Style Guide (Mood Board)",
+    "CD: AI Image Prompts (Midjourney/DALL-E)",
+    "CD: Script Polish & Tone Check",
+    
+    # --- DIGITAL LEAD ---
+    "Digital: Product Launch (Web/App)",
+    "Digital: Jira User Stories",
+    "Digital: SEO Strategy",
+    
+    # --- CONTENT CREATOR ---
+    "Social: Multi-Platform Blast",
+    "Exec: Strategy Deck Outline"
 ])
 
-if st.button("🚀 GENERATE ASSETS", type="primary", use_container_width=True):
+if st.button("🚀 EXECUTE MISSION", type="primary", use_container_width=True):
     
     # B. Combine Inputs
-    final_objective = f"{text_objective}"
+    final_objective = f"{text_objective}\nLogistics: {logistics}"
     file_context = read_file(uploaded_file)
     
-    # C. Protocols
+    # C. Protocols (Expanded for PA/CD)
     prompts = {
-        "Project Brief / Scope of Work": "Generate a Project Brief: 1. Exec Summary, 2. Deliverables, 3. Timeline, 4. Resources, 5. Success Metrics.",
-        "Digital Product Launch (Web/App)": "Generate: 1. FRD Outline, 2. Tech Stack Analysis, 3. UAT Checklist, 4. Go-Live Runbook.",
-        "Jira/Asana Ticket Generator": "Create a CSV-ready table of User Stories. Columns: Summary, Description (As a user...), Acceptance Criteria, Priority.",
-        "SEO & Metadata Strategy": "Generate: 1. Keyword Cluster, 2. Meta Titles/Descriptions, 3. URL Structure, 4. Content Gap Analysis.",
-        "Full Video Production Bible": "Generate: 1. Shooting Script, 2. Shot List, 3. Call Sheet, 4. Risk Assessment.",
-        "Marketing Campaign Launch": "Generate: 1. Strategy, 2. Content Calendar, 3. Email Sequence, 4. Ad Creative Specs.",
-        "Crisis Communications Suite": "Generate: 1. Holding Statement, 2. Internal Memo, 3. Q&A, 4. Press Release.",
-        "Executive Strategy Deck": "Generate: 1. BLUF, 2. SWOT, 3. Financials, 4. Roadmap.",
-        "Social Media Blast (Mobile)": "Create 3 posts (IG, LinkedIn, X). Put final text in ```code blocks``` for easy copying."
+        # PA PROTOCOLS
+        "PA: Daily Call Sheet": "Generate a professional Call Sheet Table. Include: Call Times (Crew vs Talent), Location Address, Nearest Hospital, Weather Forecast (Simulated), Parking Instructions, and a detailed schedule grid.",
+        "PA: Gear & Load-in Checklist": "Create a categorized checklist for Load-in. Categories: Camera, Lighting, Audio, Grip, Crafty. Include a column for 'Checked Out' and 'Returned'.",
+        "PA: Location Scout Report": "Generate a Location Assessment Form. Sections: Lighting Conditions, Power Access (Outlets/Generators), Noise Pollution, Parking Capacity, Permit Requirements, Risk Factors.",
+        "PA: Crafty & Dietary Log": "Create a Craft Services plan based on a standard crew. Include a table for Dietary Restrictions (Vegan, GF, Nut Allergy protocols) and a shopping list for Morning, Lunch, and Afternoon slump.",
+        
+        # CD PROTOCOLS
+        "CD: Visual Style Guide (Mood Board)": "Define the Visual Language. Sections: Color Palette (Hex Codes), Lighting References (e.g., 'Rembrandt', 'High Key'), Camera Movement Philosophy, and Set Design Textures.",
+        "CD: AI Image Prompts (Midjourney/DALL-E)": "Generate 5 highly detailed AI Image Prompts to visualize the concept. Format: '/imagine prompt: [Subject] + [Art Style] + [Lighting] + [Aspect Ratio]'.",
+        "CD: Script Polish & Tone Check": "Act as a Script Doctor. Review the input for tonal consistency. Suggest 3 specific dialogue or scene improvements to elevate the emotional impact.",
+        
+        # DIGITAL & CONTENT (Legacy)
+        "Digital: Product Launch (Web/App)": "Generate FRD Outline, Tech Stack, and Go-Live Runbook.",
+        "Digital: Jira User Stories": "Table of User Stories: Summary, Description, Acceptance Criteria, Priority.",
+        "Digital: SEO Strategy": "Keyword Cluster, Meta Titles, URL Structure.",
+        "Social: Multi-Platform Blast": "3 posts (IG, LinkedIn, X) in code blocks.",
+        "Exec: Strategy Deck Outline": "BLUF, SWOT, Roadmap."
     }
     
     # D. The Brain
     system_prompt = f"""
-    ROLE: Elite Digital Project Lead & Content Creator.
+    ROLE: Production Studio AI (PA, CD, & Digital Lead).
     TASK: Generate a {depth} {package_type}.
     
     CONTEXT:
     - Objective: {final_objective}
-    - Audience: {audience}
-    - Tech Stack: {tech_stack}
-    - Budget: {budget}
+    - Client/Audience: {audience}
     
     DATA:
     {file_context}
     
     INSTRUCTIONS:
     - Protocol: {prompts[package_type]}
-    - Use Markdown Headers.
-    - Use Tables for lists.
-    - Prioritize clarity for mobile reading.
+    - Format: Clean Markdown. Use Tables heavily.
+    - Tone: Professional, industry-standard terminology.
     """
     
-    with st.spinner("🧠 Processing Strategy..."):
+    with st.spinner("🧠 Analyzing Production Data..."):
         try:
             response = client.chat.completions.create(
                 model="gpt-4o",
@@ -129,12 +142,12 @@ if st.button("🚀 GENERATE ASSETS", type="primary", use_container_width=True):
             result = response.choices[0].message.content
             
             st.write("---")
-            st.success("✅ **Generation Complete**")
+            st.success("✅ **Asset Generated**")
             st.markdown(result)
             
-            # Download Button
+            # Download
             timestamp = pd.Timestamp.now().strftime("%Y%m%d_%H%M")
-            st.download_button("💾 Save to Files", result, f"Output_{timestamp}.md")
+            st.download_button("💾 Save to Files", result, f"StudioV10_Output_{timestamp}.md")
             
         except Exception as e:
             st.error(f"Error: {e}")
