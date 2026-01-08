@@ -3,20 +3,29 @@ from openai import OpenAI
 import pandas as pd
 import PyPDF2
 from docx import Document
-import io
 
-# --- 1. CONFIGURATION ---
-# UPDATED: Page Title set to "Content Creator"
-st.set_page_config(page_title="Content Creator", layout="wide", page_icon="📱")
+# --- 1. CONFIGURATION (Mobile Optimized) ---
+st.set_page_config(page_title="Content Creator", layout="centered", page_icon="📱")
+
+# CSS to make inputs look better on mobile
+st.markdown("""
+    <style>
+    .stTextArea textarea {font-size: 16px !important;}
+    .stSelectbox div[data-baseweb="select"] > div {font-size: 16px !important;}
+    </style>
+    """, unsafe_allow_html=True)
+
 st.title("📱 Content Creator")
 
 # --- 2. AUTHENTICATION ---
+# Check for secrets first, then fallback to manual entry
 if "OPENAI_API_KEY" in st.secrets:
     api_key = st.secrets["OPENAI_API_KEY"]
 else:
-    api_key = st.sidebar.text_input("OpenAI API Key", type="password")
+    # If no secret, ask for key in the main body (not sidebar)
+    api_key = st.text_input("🔑 Enter OpenAI API Key:", type="password")
     if not api_key:
-        st.warning("⚠️ Enter API Key to Start")
+        st.warning("Please enter your key to unlock the studio.")
         st.stop()
 
 client = OpenAI(api_key=api_key)
@@ -42,70 +51,39 @@ def read_file(uploaded_file):
         return f"Error: {e}"
     return text
 
-# --- 4. MISSION CONTROL ---
-with st.sidebar:
-    st.header("1. Input Data")
-    uploaded_file = st.file_uploader("📂 Upload Brief", type=["pdf", "docx", "txt", "csv"])
-    
-    st.header("2. Strategy & Context")
-    
-    # --- CRASH PROTECTION: AUDIO TOGGLE ---
-    enable_audio = st.checkbox("🎙️ Enable Voice Mode (Experimental)")
-    
-    audio_brief = None
-    if enable_audio:
-        try:
-            st.info("Microphone Active. Tap to record.")
-            audio_brief = st.audio_input("Record Voice Brief")
-        except:
-            st.error("Your browser does not support this widget.")
+# --- 4. MAIN MOBILE INTERFACE (Vertical Scroll) ---
 
-    # TEXT INPUTS
-    with st.expander("📝 Written Context", expanded=True):
-        text_objective = st.text_area("Objective:", placeholder="e.g. Launch new website...")
-        audience = st.text_input("Audience:", placeholder="e.g. Stakeholders...")
+st.info("👇 **Phase 1: Input Data**")
+uploaded_file = st.file_uploader("Upload Brief / Context", type=["pdf", "docx", "txt", "csv"])
 
-    # DIGITAL CONTROLS
-    with st.expander("💻 Tech & Resources"):
-        tech_stack = st.text_input("Tech Stack:", placeholder="e.g. React, WordPress")
-        budget = st.text_input("Budget/Team:", placeholder="e.g. 2 Devs, $50k")
+text_objective = st.text_area("Objective / Context:", placeholder="Describe what you need to build...", height=120)
 
-    # CONTROLS
+# DIGITAL LEAD CONTROLS (Hidden in Expander to save space)
+with st.expander("🛠️ Advanced Settings (Tech & Budget)"):
+    audience = st.text_input("Target Audience:", placeholder="e.g. Stakeholders")
+    tech_stack = st.text_input("Tech Stack:", placeholder="e.g. React, WordPress")
+    budget = st.text_input("Budget/Resources:", placeholder="e.g. 2 Devs, $50k")
     depth = st.select_slider("Depth:", options=["Draft", "Standard", "Comprehensive"], value="Standard")
-    
-    st.header("3. Select Package")
-    package_type = st.selectbox("📦 Output Suite:", [
-        "Project Brief / Scope of Work",
-        "Digital Product Launch (Web/App)",
-        "Jira/Asana Ticket Generator",
-        "SEO & Metadata Strategy",
-        "Full Video Production Bible",
-        "Marketing Campaign Launch",
-        "Crisis Communications Suite",
-        "Executive Strategy Deck",
-        "Social Media Blast (Mobile)"
-    ])
-    
-    generate_btn = st.button("🚀 EXECUTE", type="primary", use_container_width=True)
 
-# --- 5. LOGIC ENGINE ---
-if generate_btn:
-    # A. Transcribe Audio (Safe Mode)
-    audio_text = ""
-    if audio_brief:
-        with st.spinner("🎙️ Transcribing Voice..."):
-            try:
-                transcription = client.audio.transcriptions.create(
-                    model="whisper-1", 
-                    file=audio_brief
-                )
-                audio_text = transcription.text
-                st.success(f"🗣️ Heard: {audio_text[:50]}...")
-            except Exception as e:
-                st.error(f"Audio Transcription Failed: {e}")
+st.write("---")
+st.info("👇 **Phase 2: Select Output**")
+
+package_type = st.selectbox("Choose Protocol:", [
+    "Project Brief / Scope of Work",
+    "Digital Product Launch (Web/App)",
+    "Jira/Asana Ticket Generator",
+    "SEO & Metadata Strategy",
+    "Full Video Production Bible",
+    "Marketing Campaign Launch",
+    "Crisis Communications Suite",
+    "Executive Strategy Deck",
+    "Social Media Blast (Mobile)"
+])
+
+if st.button("🚀 GENERATE ASSETS", type="primary", use_container_width=True):
     
     # B. Combine Inputs
-    final_objective = f"{text_objective}\n{audio_text}"
+    final_objective = f"{text_objective}"
     file_context = read_file(uploaded_file)
     
     # C. Protocols
@@ -123,7 +101,7 @@ if generate_btn:
     
     # D. The Brain
     system_prompt = f"""
-    ROLE: Elite Digital Project Lead.
+    ROLE: Elite Digital Project Lead & Content Creator.
     TASK: Generate a {depth} {package_type}.
     
     CONTEXT:
@@ -139,9 +117,10 @@ if generate_btn:
     - Protocol: {prompts[package_type]}
     - Use Markdown Headers.
     - Use Tables for lists.
+    - Prioritize clarity for mobile reading.
     """
     
-    with st.spinner("🧠 Processing..."):
+    with st.spinner("🧠 Processing Strategy..."):
         try:
             response = client.chat.completions.create(
                 model="gpt-4o",
@@ -149,13 +128,6 @@ if generate_btn:
             )
             result = response.choices[0].message.content
             
-            st.markdown("---")
-            st.markdown("### ✅ Generated Output")
-            st.markdown(result)
-            
-            # Download Button
-            timestamp = pd.Timestamp.now().strftime("%Y%m%d_%H%M")
-            st.download_button("💾 Save File", result, f"Output_{timestamp}.md")
-            
-        except Exception as e:
-            st.error(f"Generation Error: {e}")
+            st.write("---")
+            st.success("✅ **Generation Complete**")
+            st.
