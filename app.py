@@ -15,11 +15,11 @@ from datetime import datetime
 import concurrent.futures
 
 # --- 1. CONFIGURATION ---
-st.set_page_config(page_title="Studio V27: Final Prime", layout="wide", page_icon="💎")
+st.set_page_config(page_title="Studio V28: Grandmaster", layout="wide", page_icon="♟️")
 
 st.markdown("""
     <style>
-    .stButton button {height: 3.5em; font-weight: 800; border-radius: 8px; background-color: #0E1117; color: white; border: 1px solid #333;}
+    .stButton button {height: 3.5em; font-weight: 800; border-radius: 8px; background-color: #2b2d42; color: white; border: 1px solid #4a4e69;}
     .brand-sidebar {background-color: #f8f9fa; padding: 15px; border-radius: 10px;}
     div[data-testid="stStatusWidget"] {visibility: visible;}
     </style>
@@ -100,23 +100,36 @@ def generate_art(prompt):
         return client.images.generate(model="dall-e-3", prompt=art_p, size="1024x1024").data[0].url
     except: return None
 
-# --- 4. THE PRIME ENGINE (Parallel + Recursive) ---
+# --- 4. THE GRANDMASTER LOGIC (Pre-Cortex + Tree of Thoughts) ---
 
-def run_prime_swarm(mission, protocol, context, image_data, voice_transcript, req_outputs, depth):
+def optimize_prompt(raw_mission):
+    """The Pre-Cortex: Rewrites lazy user prompts into mega-prompts."""
+    resp = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[{"role": "system", "content": f"ACT AS: Prompt Engineer. REWRITE this objective to be highly specific, professional, and actionable. RETURN ONLY THE REWRITTEN PROMPT. Input: {raw_mission}"}]
+    )
+    return resp.choices[0].message.content
+
+def run_grandmaster_swarm(mission, protocol, context, image_data, voice_transcript, req_outputs, depth):
     results = {}
     
-    with st.status(f"💎 Executing {protocol} ({depth})...", expanded=True) as status:
+    with st.status(f"♟️ Grandmaster Engine ({depth})...", expanded=True) as status:
         
+        # --- PHASE 0: PRE-CORTEX (Prompt Optimization) ---
+        status.write("🧠 Phase 0: Optimizing Objective (Pre-Cortex)...")
+        optimized_mission = optimize_prompt(mission) if depth != "Draft" else mission
+        st.caption(f"✨ Optimized to: {optimized_mission[:100]}...")
+
         # --- PHASE 1: SENSORY (Parallel) ---
         status.write("👁️ Phase 1: Sensory Uplink (Web + Vision)...")
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            future_web = executor.submit(web_search, f"{mission} {protocol} trends")
+            future_web = executor.submit(web_search, f"{optimized_mission} {protocol} trends")
             future_vis = executor.submit(analyze_vision, image_data, f"Analyze for {protocol} context.")
             intel = future_web.result()
             visual_analysis = future_vis.result()
             
-        # --- PHASE 2: STRATEGY (Recursive Oracle Loop) ---
-        status.write(f"🧠 Phase 2: Strategic Synthesis (Oracle Loop)...")
+        # --- PHASE 2: STRATEGY (Tree of Thoughts if Deep Dive) ---
+        status.write(f"🧠 Phase 2: Strategic Synthesis...")
         
         protocol_prompts = {
             "Custom Mission": "Follow objective.",
@@ -129,39 +142,58 @@ def run_prime_swarm(mission, protocol, context, image_data, voice_transcript, re
         }
         
         base_instr = protocol_prompts.get(protocol, "Execute Mission.")
-        depth_instr = {"Draft": "Bullet points.", "Standard": "Professional depth.", "Deep Dive": "Extensive analysis."}[depth]
+        full_context = f"PROTOCOL: {protocol}\nMISSION: {optimized_mission}\nVOICE: {voice_transcript}\nINTEL: {intel}\n{visual_analysis}\nCONTEXT: {context}\nINSTRUCTION: {base_instr}"
         
-        full_context = f"PROTOCOL: {protocol}\nMISSION: {mission}\nVOICE: {voice_transcript}\nINTEL: {intel}\n{visual_analysis}\nCONTEXT: {context}\nINSTRUCTION: {base_instr} {depth_instr}"
-        
-        # THE ORACLE LOOP (Restored from V21)
-        current_draft = ""
-        quality_score = 0
-        attempts = 0
-        max_attempts = 2 if depth == "Deep Dive" else 1 # Only loop on Deep Dive to save time/tokens
-        
-        while attempts < max_attempts:
-            attempts += 1
-            # 1. Draft
+        final_strategy = ""
+
+        # A. TREE OF THOUGHTS (Only for Deep Dive)
+        if depth == "Deep Dive":
+            status.write("🌳 Phase 2b: Tree of Thoughts (Generating 3 Divergent Paths)...")
+            
+            # Generate 3 Angles in Parallel
+            angles = ["Conservative/Safe", "Aggressive/Viral", "Data-Driven/Logical"]
+            drafts = []
+            
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                futures = {executor.submit(client.chat.completions.create, model="gpt-4o", messages=[{"role": "system", "content": f"Generate Strategy. ANGLE: {angle}. Context: {full_context}"}]): angle for angle in angles}
+                for future in concurrent.futures.as_completed(futures):
+                    drafts.append(future.result().choices[0].message.content)
+            
+            # Synthesis (The Arbiter)
+            status.write("⚖️ Phase 2c: The Arbiter (Synthesizing Best Path)...")
+            arbiter_resp = client.chat.completions.create(
+                model="gpt-4o",
+                messages=[{"role": "system", "content": f"You are the Grandmaster Strategist. Review these 3 drafts. Merge the BEST elements of each into one Master Strategy. \n\nDRAFT 1: {drafts[0]}\n\nDRAFT 2: {drafts[1]}\n\nDRAFT 3: {drafts[2]}"}]
+            )
+            final_strategy = arbiter_resp.choices[0].message.content
+
+        # B. STANDARD/DRAFT (Linear or Loop)
+        else:
             draft_resp = client.chat.completions.create(
                 model="gpt-4o",
-                messages=[
-                    {"role": "system", "content": "You are an Elite Media Strategist. Output Markdown."}, 
-                    {"role": "user", "content": f"Refine: {current_draft}" if current_draft else full_context}
-                ]
+                messages=[{"role": "system", "content": "You are an Elite Media Strategist. Output Markdown."}, {"role": "user", "content": full_context}]
             )
             current_draft = draft_resp.choices[0].message.content
             
-            # 2. Score (Self-Correction)
-            if max_attempts > 1:
+            # Oracle Loop (Self-Correction) for Standard
+            if depth == "Standard":
                 score_resp = client.chat.completions.create(
                     model="gpt-4o",
-                    messages=[{"role": "system", "content": f"Rate 0-100 on impact/clarity. Output ONLY number. Text: {current_draft[:1000]}"}]
+                    messages=[{"role": "system", "content": f"Rate 0-100 on impact. Output ONLY number. Text: {current_draft[:1000]}"}]
                 )
-                try: quality_score = int(score_resp.choices[0].message.content.strip())
-                except: quality_score = 90
-                status.write(f"Draft {attempts}: Quality Score {quality_score}/100")
-        
-        results['Master_Strategy.md'] = current_draft
+                try: 
+                    if int(score_resp.choices[0].message.content.strip()) < 90:
+                        status.write("🔄 Refining Strategy (Self-Correction)...")
+                        refine_resp = client.chat.completions.create(
+                            model="gpt-4o",
+                            messages=[{"role": "system", "content": "Refine and improve this strategy."}, {"role": "user", "content": current_draft}]
+                        )
+                        current_draft = refine_resp.choices[0].message.content
+                except: pass
+            
+            final_strategy = current_draft
+
+        results['Master_Strategy.md'] = final_strategy
         
         # --- PHASE 3: ARTIFACTS (Parallel) ---
         if req_outputs:
@@ -170,22 +202,22 @@ def run_prime_swarm(mission, protocol, context, image_data, voice_transcript, re
                 futures = {}
                 
                 if "Simulation" in req_outputs:
-                    futures['sim'] = executor.submit(client.chat.completions.create, model="gpt-4o", messages=[{"role": "system", "content": f"Simulate focus group reaction to: {current_draft[:1000]}"}])
+                    futures['sim'] = executor.submit(client.chat.completions.create, model="gpt-4o", messages=[{"role": "system", "content": f"Simulate focus group reaction to: {final_strategy[:1000]}"}])
                 
                 if "PPTX" in req_outputs:
-                    futures['pptx'] = executor.submit(client.chat.completions.create, model="gpt-4o", response_format={ "type": "json_object" }, messages=[{"role": "system", "content": f"Convert to 5 slides JSON: {current_draft[:2000]}"}])
+                    futures['pptx'] = executor.submit(client.chat.completions.create, model="gpt-4o", response_format={ "type": "json_object" }, messages=[{"role": "system", "content": f"Convert to 5 slides JSON: {final_strategy[:2000]}"}])
                 
                 if "Calendar" in req_outputs:
-                    futures['ics'] = executor.submit(client.chat.completions.create, model="gpt-4o", response_format={ "type": "json_object" }, messages=[{"role": "system", "content": f"Extract dates to JSON: {current_draft[:2000]}"}])
+                    futures['ics'] = executor.submit(client.chat.completions.create, model="gpt-4o", response_format={ "type": "json_object" }, messages=[{"role": "system", "content": f"Extract dates to JSON: {final_strategy[:2000]}"}])
                 
                 if "Audio" in req_outputs:
-                    futures['mp3'] = executor.submit(create_audio, f"Briefing for {protocol}. {current_draft[:500]}")
+                    futures['mp3'] = executor.submit(create_audio, f"Briefing for {protocol}. {final_strategy[:500]}")
                 
                 if "Art" in req_outputs:
                     futures['art'] = executor.submit(generate_art, f"{protocol} {mission}")
 
                 if "CSV" in req_outputs:
-                    futures['csv'] = executor.submit(client.chat.completions.create, model="gpt-4o", messages=[{"role": "system", "content": f"Extract CSV data table: {current_draft[:2000]}"}])
+                    futures['csv'] = executor.submit(client.chat.completions.create, model="gpt-4o", messages=[{"role": "system", "content": f"Extract CSV data table: {final_strategy[:2000]}"}])
 
                 for key, future in futures.items():
                     try:
@@ -198,7 +230,7 @@ def run_prime_swarm(mission, protocol, context, image_data, voice_transcript, re
                         elif key == 'csv': results['Project_Data.csv'] = res.choices[0].message.content
                     except: pass
 
-        status.update(label="✅ Prime Cycle Complete", state="complete")
+        status.update(label="✅ Grandmaster Cycle Complete", state="complete")
         
     return results
 
@@ -208,7 +240,7 @@ with st.sidebar:
     brand_name = st.text_input("Org Name", placeholder="Apex Media")
     north_star = st.text_area("North Star Goal", placeholder="Growth...")
 
-st.title("💎 Studio V27: Final Prime")
+st.title("♟️ Studio V28: The Grandmaster")
 
 # UNIFIED INPUT
 tab_text, tab_vis, tab_voice = st.tabs(["📝 Mission Control", "👁️ Vision Uplink", "🎙️ Voice Command"])
@@ -222,7 +254,7 @@ with tab_text:
         "👁️ Director: Vibe",
         "💻 Digital Stack"
     ])
-    mission_input = st.text_area("Specific Objective", placeholder="e.g. Launch Q3 Strategy...", height=100)
+    mission_input = st.text_area("Objective", placeholder="e.g. Launch Q3 Strategy...", height=100)
     uploaded_file = st.file_uploader("Intel Files", type=["pdf", "docx", "txt"])
 
 with tab_vis:
@@ -236,8 +268,14 @@ st.divider()
 
 col1, col2 = st.columns([1, 1])
 with col1:
-    st.subheader("🎚️ Depth Control")
-    depth_setting = st.select_slider("Analysis Depth", options=["Draft", "Standard", "Deep Dive"], value="Standard")
+    st.subheader("🎚️ Intelligence Level")
+    # UPDATED: Replaced "Depth" with "Intelligence Level" to reflect new logic
+    depth_setting = st.select_slider(
+        "Reasoning Depth", 
+        options=["Draft", "Standard", "Deep Dive"], 
+        value="Standard",
+        help="Draft: Fast linear. Standard: Self-correcting. Deep Dive: Tree of Thoughts (3 parallel strategies)."
+    )
 
 with col2:
     st.subheader("📦 Output Selection")
@@ -257,7 +295,7 @@ if st.button("🚀 IGNITE ENGINE", type="primary", use_container_width=True):
     context = f"Brand: {brand_name}. Goal: {north_star}. File Data: {file_txt}"
     
     if mission_input or voice_txt or active_img:
-        outputs = run_prime_swarm(mission_input, protocol, context, active_img, voice_txt, selected_outputs, depth_setting)
+        outputs = run_grandmaster_swarm(mission_input, protocol, context, active_img, voice_txt, selected_outputs, depth_setting)
         st.session_state.current_result = outputs
         st.session_state.history.insert(0, outputs)
         st.rerun()
@@ -275,14 +313,14 @@ if st.session_state.current_result:
     st.subheader("🧪 Refinement Lab")
     st.markdown(latest.get('Master_Strategy.md', ''))
     
-    refine_q = st.chat_input("Refine this strategy (e.g., 'Make it punchier', 'Add TikTok plan')")
+    refine_q = st.chat_input("Refine this strategy...")
     if refine_q:
         with st.spinner("🔄 Refining..."):
             new_resp = client.chat.completions.create(
                 model="gpt-4o",
                 messages=[
                     {"role": "assistant", "content": latest['Master_Strategy.md']},
-                    {"role": "user", "content": f"Modify the above strategy: {refine_q}"}
+                    {"role": "user", "content": f"Modify: {refine_q}"}
                 ]
             )
             st.session_state.current_result['Master_Strategy.md'] = new_resp.choices[0].message.content
@@ -307,7 +345,7 @@ if st.session_state.current_result:
                         try: zip_file.writestr(key.replace('.md', '.pdf'), create_pdf(val))
                         except: pass
         
-        st.download_button("📦 Download Archive Bundle (.ZIP)", zip_buffer.getvalue(), "Prime_Assets.zip", "application/zip", type="primary", use_container_width=True)
+        st.download_button("📦 Download Grandmaster Bundle (.ZIP)", zip_buffer.getvalue(), "Grandmaster_Assets.zip", "application/zip", type="primary", use_container_width=True)
 
     if "👥 Sim" in tabs:
         with active_tabs[tabs.index("👥 Sim")]: st.info(latest['Simulation_Log.md'])
