@@ -130,4 +130,11 @@ if st.button("🚀 GENERATE ASSETS", type="primary", use_container_width=True):
             
             st.write("---")
             st.success("✅ **Generation Complete**")
-            st.
+            st.markdown(result)
+            
+            # Download Button
+            timestamp = pd.Timestamp.now().strftime("%Y%m%d_%H%M")
+            st.download_button("💾 Save to Files", result, f"Output_{timestamp}.md")
+            
+        except Exception as e:
+            st.error(f"Error: {e}")
