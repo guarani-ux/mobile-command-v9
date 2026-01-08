@@ -6,3 +6,4 @@ python-docx
 fpdf
 duckduckgo-search
 python-pptx
+ics
