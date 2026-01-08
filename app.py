@@ -3,24 +3,24 @@ from openai import OpenAI
 import pandas as pd
 import PyPDF2
 from docx import Document
-import io
 
-# --- 1. SAFE MOBILE CONFIGURATION (No CSS Hacks) ---
-st.set_page_config(page_title="Studio V9.3", layout="wide", page_icon="📱")
-st.title("📱 Studio V9.3: Stabilized")
+# --- 1. BARE METAL CONFIG (No Audio, No CSS) ---
+st.set_page_config(page_title="Studio V9.4", layout="wide")
+st.title("✅ Studio V9.4: Connection Test")
+st.write("If you can read this, the mobile connection is stable.")
 
 # --- 2. AUTHENTICATION ---
 if "OPENAI_API_KEY" in st.secrets:
     api_key = st.secrets["OPENAI_API_KEY"]
 else:
-    api_key = st.sidebar.text_input("OpenAI API Key", type="password")
+    api_key = st.text_input("Enter OpenAI API Key:", type="password")
     if not api_key:
-        st.warning("⚠️ Please enter your API Key in the sidebar to start.")
+        st.warning("Waiting for Key...")
         st.stop()
 
 client = OpenAI(api_key=api_key)
 
-# --- 3. HELPER FUNCTIONS ---
+# --- 3. BASIC FILE READER ---
 def read_file(uploaded_file):
     if not uploaded_file: return ""
     file_type = uploaded_file.name.split('.')[-1].lower()
@@ -41,58 +41,36 @@ def read_file(uploaded_file):
         return f"Error: {e}"
     return text
 
-# --- 4. MISSION CONTROL (Sidebar) ---
-with st.sidebar:
-    st.header("1. Input Data")
-    uploaded_file = st.file_uploader("📂 Upload Brief/CSV", type=["pdf", "docx", "txt", "csv"])
-    
-    st.header("2. Strategy & Constraints")
-    
-    # AUDIO CHECK: If this crashes, we know it's the mic permission
-    try:
-        audio_brief = st.audio_input("🎙️ Voice Brief (Objective)")
-    except:
-        st.error("Audio feature unavailable. Check browser permissions.")
-        audio_brief = None
-    
-    # TEXT FALLBACK
-    with st.expander("📝 Written Context (Click to Expand)", expanded=True):
-        text_objective = st.text_area("Objective:", placeholder="e.g. Increase sign-ups...")
-        audience = st.text_input("Audience:", placeholder="e.g. Stakeholders...")
-    
-    # CONTROLS
-    duration = st.text_input("⏱️ Length/Time Constraint:", placeholder="e.g. 2 mins, 500 words...")
-    depth = st.select_slider("🎚️ Output Depth:", options=["Draft", "Standard", "Comprehensive"], value="Standard")
+# --- 4. SIMPLE INTERFACE (No Sidebar Complexities) ---
+st.header("1. Strategy Inputs")
+uploaded_file = st.file_uploader("Upload Brief", type=["pdf", "docx", "txt", "csv"])
 
-    # DIGITAL PROJECT CONTROLS
-    with st.expander("💻 Tech & Resources"):
-        tech_stack = st.text_input("Tech Stack / Platform:", placeholder="e.g. WordPress, React")
-        budget = st.text_input("Budget / Resources:", placeholder="e.g. $50k cap")
+text_objective = st.text_area("Objective / Context:", height=150)
+package_type = st.selectbox("Select Output:", [
+    "Project Brief",
+    "Social Media Post",
+    "Executive Summary",
+    "Digital Product Specs"
+])
 
-    st.header("3. Select Package")
-    package_type = st.selectbox("📦 Output Suite:", [
-        "Project Brief / Scope of Work",
-        "Digital Product Launch (Web/App)",
-        "Jira/Asana Ticket Generator",
-        "SEO & Metadata Strategy",
-        "Full Video Production Bible",
-        "Marketing Campaign Launch",
-        "Crisis Communications Suite",
-        "Executive Strategy Deck",
-        "Social Media Blast (Mobile Optimized)"
-    ])
+if st.button("🚀 RUN", type="primary"):
+    file_context = read_file(uploaded_file)
     
-    generate_btn = st.button("🚀 EXECUTE MISSION", type="primary", use_container_width=True)
-
-# --- 5. LOGIC ENGINE ---
-if generate_btn:
-    # A. Transcribe Audio
-    audio_text = ""
-    if audio_brief:
-        with st.spinner("🎙️ Transcribing Voice..."):
-            transcription = client.audio.transcriptions.create(
-                model="whisper-1", 
-                file=audio_brief
+    system_prompt = f"""
+    ROLE: Elite Strategist.
+    TASK: Generate a {package_type}.
+    CONTEXT: {text_objective}
+    DATA: {file_context}
+    """
+    
+    with st.spinner("Generating..."):
+        try:
+            response = client.chat.completions.create(
+                model="gpt-4o",
+                messages=[{"role": "system", "content": system_prompt}]
             )
-            audio_text = transcription.text
-            st.success(f"🗣️ Heard: {audio_text[:50]}...")
+            result = response.choices[0].message.content
+            st.markdown("### Output:")
+            st.markdown(result)
+        except Exception as e:
+            st.error(f"Generation Error: {e}")
