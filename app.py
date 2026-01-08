@@ -6,9 +6,9 @@ from docx import Document
 import io
 
 # --- 1. MOBILE CONFIGURATION ---
-st.set_page_config(page_title="Studio V9", layout="wide", page_icon="📱")
+st.set_page_config(page_title="Studio V9.1", layout="wide", page_icon="📱")
 
-# CSS Hack to hide the top bar on mobile for cleaner look
+# CSS Hack to hide top bar for cleaner mobile look
 hide_streamlit_style = """
 <style>
 #MainMenu {visibility: hidden;}
@@ -18,7 +18,7 @@ div.block-container {padding-top: 1rem;}
 """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
-st.title("📱 Studio V9: Mobile Command")
+st.title("📱 Studio V9.1: Hybrid Command")
 
 # --- 2. AUTHENTICATION ---
 if "OPENAI_API_KEY" in st.secrets:
@@ -52,36 +52,43 @@ def read_file(uploaded_file):
         return f"Error: {e}"
     return text
 
-# --- 4. INPUT ZONE (Mobile Optimized) ---
+# --- 4. MISSION CONTROL (Sidebar) ---
 with st.sidebar:
     st.header("1. Input Data")
     uploaded_file = st.file_uploader("📂 Upload Brief/CSV", type=["pdf", "docx", "txt", "csv"])
     
-    st.header("2. Strategy")
-    # NEW: Audio Input for fast mobile briefing
-    audio_brief = st.audio_input("🎙️ Record Objective/Context")
+    st.header("2. Strategy & Constraints")
+    # AUDIO INPUT (Mobile Feature)
+    audio_brief = st.audio_input("🎙️ Voice Brief (Objective)")
     
-    # Fallback text input
-    with st.expander("📝 Or Type Context (Click to Expand)"):
-        text_objective = st.text_area("Objective:", placeholder="e.g. Launch Q3 Campaign")
-        audience = st.text_input("Audience:", placeholder="e.g. Gen Z")
-        
-    package_type = st.selectbox("📦 Select Package:", [
-        "Social Media Blast (IG/LinkedIn)",
-        "Executive Summary",
-        "Video Script (Short Form)",
-        "Crisis Response",
-        "Email Sequence"
+    # TEXT FALLBACK
+    with st.expander("📝 Written Context (Click to Expand)"):
+        text_objective = st.text_area("Objective:", placeholder="e.g. Increase sign-ups...")
+        audience = st.text_input("Audience:", placeholder="e.g. Stakeholders...")
+    
+    # RESTORED: LENGTH & DEPTH CONTROLS
+    duration = st.text_input("⏱️ Length/Time Constraint:", placeholder="e.g. 2 mins, 500 words...")
+    depth = st.select_slider("🎚️ Output Depth:", options=["Draft", "Standard", "Comprehensive"], value="Standard")
+
+    st.header("3. Select Package")
+    # RESTORED: FULL PACKAGE LIST
+    package_type = st.selectbox("📦 Output Suite:", [
+        "Project Brief / Scope of Work",  # <-- RESTORED
+        "Full Video Production Bible",
+        "Marketing Campaign Launch",
+        "Crisis Communications Suite",
+        "Executive Strategy Deck",
+        "Social Media Blast (Mobile Optimized)"
     ])
     
-    generate_btn = st.button("🚀 EXECUTE", type="primary", use_container_width=True)
+    generate_btn = st.button("🚀 EXECUTE MISSION", type="primary", use_container_width=True)
 
 # --- 5. LOGIC ENGINE ---
 if generate_btn:
-    # A. Transcribe Audio if present
+    # A. Transcribe Audio
     audio_text = ""
     if audio_brief:
-        with st.spinner("🎙️ Transcribing Voice Note..."):
+        with st.spinner("🎙️ Transcribing Voice..."):
             transcription = client.audio.transcriptions.create(
                 model="whisper-1", 
                 file=audio_brief
@@ -95,27 +102,33 @@ if generate_btn:
     
     # C. Protocols
     prompts = {
-        "Social Media Blast (IG/LinkedIn)": "Create 3 variations: 1. LinkedIn Professional, 2. Instagram Casual, 3. Twitter Thread. Format in code blocks for easy copying.",
-        "Executive Summary": "Create a BLUF (Bottom Line Up Front) summary, followed by Key Risks and Financial Impact.",
-        "Video Script (Short Form)": "Create a 60-second vertical video script. Split into Visual/Audio columns.",
-        "Crisis Response": "Draft a Holding Statement (Internal) and a Press Release (External).",
-        "Email Sequence": "Draft 3 emails: 1. Value Add, 2. Soft Pitch, 3. Hard Close."
+        "Project Brief / Scope of Work": "Generate a formal Project Brief including: 1. Executive Summary, 2. Deliverables List, 3. Timeline/Phasing, 4. Resource Requirements, 5. Success Metrics (KPIs).",
+        "Full Video Production Bible": "Generate: 1. Shooting Script (AV Format), 2. Shot List (Table), 3. Call Sheet, 4. Risk Assessment.",
+        "Marketing Campaign Launch": "Generate: 1. Strategy Overview, 2. Content Calendar (Table), 3. Email Sequence, 4. Ad Creative Specs.",
+        "Crisis Communications Suite": "Generate: 1. Holding Statement, 2. Internal Memo, 3. Q&A Key Messages, 4. Press Release.",
+        "Executive Strategy Deck": "Generate: 1. BLUF (Bottom Line Up Front), 2. SWOT Analysis, 3. Financial Projections (Table), 4. Roadmap.",
+        "Social Media Blast (Mobile Optimized)": "Create 3 variations (IG, LinkedIn, Twitter). Format inside Code Blocks (```) for one-tap copying."
     }
     
     # D. The Brain
     system_prompt = f"""
-    ROLE: Elite Mobile Marketing Strategist.
-    TASK: Generate {package_type}.
+    ROLE: Elite Senior Strategist & Producer.
+    TASK: Generate a {depth} {package_type}.
     
-    CONTEXT:
+    STRATEGIC CONTEXT:
     - Objective: {final_objective}
     - Audience: {audience}
-    - File Data: {file_context}
+    - Constraints: {duration}
+    - Depth Mode: {depth}
+    
+    INPUT DATA:
+    {file_context}
     
     INSTRUCTIONS:
-    - Use clear headers.
-    - {prompts[package_type]}
-    - IMPORTANT: If the output is social copy, put the final text in a markdown code block (```) so the user can one-tap copy it.
+    - Follow this Protocol: {prompts[package_type]}
+    - Use clear Markdown headers.
+    - Use Tables for any lists or calendars.
+    - If 'Comprehensive' is selected, include a 'Rationale' section explaining the strategy.
     """
     
     with st.spinner("🧠 Processing Strategy..."):
@@ -130,4 +143,5 @@ if generate_btn:
         st.markdown(result)
         
         # Download Option
-        st.download_button("💾 Save as File", result, "output.md")
+        timestamp = pd.Timestamp.now().strftime("%Y%m%d_%H%M")
+        st.download_button("💾 Save Masterfile", result, f"Output_{timestamp}.md")
