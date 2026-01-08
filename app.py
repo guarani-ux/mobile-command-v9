@@ -6,8 +6,9 @@ from docx import Document
 import io
 
 # --- 1. CONFIGURATION ---
-st.set_page_config(page_title="Studio V9.6", layout="wide", page_icon="📱")
-st.title("📱 Studio V9.6: Digital Lead")
+# UPDATED: Page Title set to "Content Creator"
+st.set_page_config(page_title="Content Creator", layout="wide", page_icon="📱")
+st.title("📱 Content Creator")
 
 # --- 2. AUTHENTICATION ---
 if "OPENAI_API_KEY" in st.secrets:
@@ -49,8 +50,6 @@ with st.sidebar:
     st.header("2. Strategy & Context")
     
     # --- CRASH PROTECTION: AUDIO TOGGLE ---
-    # We do NOT load the audio widget by default. 
-    # You must check the box to risk loading it.
     enable_audio = st.checkbox("🎙️ Enable Voice Mode (Experimental)")
     
     audio_brief = None
