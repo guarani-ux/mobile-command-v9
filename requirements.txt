@@ -4,3 +4,4 @@ pandas
 PyPDF2
 python-docx
 fpdf
+duckduckgo-search
