@@ -3,20 +3,22 @@ from openai import OpenAI
 import pandas as pd
 import PyPDF2
 from docx import Document
+from fpdf import FPDF
+import io
 
-# --- 1. CONFIGURATION (Mobile Optimized) ---
-st.set_page_config(page_title="Studio V10", layout="centered", page_icon="🎬")
+# --- 1. CONFIGURATION ---
+st.set_page_config(page_title="Studio V11", layout="centered", page_icon="🎬")
 
-# CSS: Better font sizes for mobile tapping
+# CSS: Mobile Optimization
 st.markdown("""
     <style>
     .stTextArea textarea {font-size: 16px !important;}
     .stSelectbox div[data-baseweb="select"] > div {font-size: 16px !important;}
-    .stButton button {height: 3em !important;}
+    .stButton button {height: 3em !important; font-weight: bold;}
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🎬 Studio V10: Full House")
+st.title("🎬 Studio V11: God Mode")
 
 # --- 2. AUTHENTICATION ---
 if "OPENAI_API_KEY" in st.secrets:
@@ -24,7 +26,7 @@ if "OPENAI_API_KEY" in st.secrets:
 else:
     api_key = st.text_input("🔑 Enter OpenAI API Key:", type="password")
     if not api_key:
-        st.warning("Please enter your key to unlock the studio.")
+        st.warning("Please enter your key.")
         st.stop()
 
 client = OpenAI(api_key=api_key)
@@ -50,104 +52,128 @@ def read_file(uploaded_file):
         return f"Error: {e}"
     return text
 
-# --- 4. MAIN INTERFACE (Vertical Scroll) ---
+def create_pdf(text):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.set_font("Arial", size=12)
+    # Filter out unsupported unicode characters for FPDF (Safe Mode)
+    safe_text = text.encode('latin-1', 'replace').decode('latin-1')
+    pdf.multi_cell(0, 10, safe_text)
+    return pdf.output(dest="S").encode("latin-1")
+
+# --- 4. SESSION STATE (Memory) ---
+if "generated_text" not in st.session_state:
+    st.session_state.generated_text = ""
+if "generated_image" not in st.session_state:
+    st.session_state.generated_image = None
+
+# --- 5. INTERFACE ---
 
 st.info("👇 **Phase 1: Intel Input**")
-uploaded_file = st.file_uploader("Upload Script/Brief/Logistics", type=["pdf", "docx", "txt", "csv"])
-text_objective = st.text_area("Context / Notes:", placeholder="e.g. 50 person crew, outdoor shoot, rainy forecast...", height=120)
+uploaded_file = st.file_uploader("Upload Script/Brief", type=["pdf", "docx", "txt", "csv"])
+text_objective = st.text_area("Context:", placeholder="e.g. 50 person crew, sci-fi theme...", height=100)
 
-# EXPANDER: Advanced Constraints
-with st.expander("🛠️ Crew & Tech Specs"):
-    audience = st.text_input("Audience/Client:", placeholder="e.g. Netflix / Corporate")
-    logistics = st.text_input("Logistics/Constraints:", placeholder="e.g. 3 Locations, $10k Budget")
+with st.expander("🛠️ Advanced Settings"):
+    audience = st.text_input("Client:", placeholder="Netflix / Corporate")
+    logistics = st.text_input("Constraints:", placeholder="Budget/Locations")
     depth = st.select_slider("Depth:", options=["Quick List", "Standard", "Detailed Protocol"], value="Standard")
 
 st.write("---")
-st.info("👇 **Phase 2: Select Role & Output**")
+st.info("👇 **Phase 2: Select Role**")
 
-# NEW: CATEGORIZED DROPDOWN
 package_type = st.selectbox("Choose Protocol:", [
-    # --- PRODUCTION ASSISTANT ---
     "PA: Daily Call Sheet",
     "PA: Gear & Load-in Checklist",
     "PA: Location Scout Report",
-    "PA: Crafty & Dietary Log",
-    
-    # --- CREATIVE DIRECTOR ---
     "CD: Visual Style Guide (Mood Board)",
-    "CD: AI Image Prompts (Midjourney/DALL-E)",
-    "CD: Script Polish & Tone Check",
-    
-    # --- DIGITAL LEAD ---
+    "CD: DALL-E 3 Concept Art Generator", # <-- NEW FEATURE
     "Digital: Product Launch (Web/App)",
     "Digital: Jira User Stories",
-    "Digital: SEO Strategy",
-    
-    # --- CONTENT CREATOR ---
     "Social: Multi-Platform Blast",
     "Exec: Strategy Deck Outline"
 ])
 
+# --- 6. EXECUTION ENGINE ---
 if st.button("🚀 EXECUTE MISSION", type="primary", use_container_width=True):
     
-    # B. Combine Inputs
     final_objective = f"{text_objective}\nLogistics: {logistics}"
     file_context = read_file(uploaded_file)
     
-    # C. Protocols (Expanded for PA/CD)
-    prompts = {
-        # PA PROTOCOLS
-        "PA: Daily Call Sheet": "Generate a professional Call Sheet Table. Include: Call Times (Crew vs Talent), Location Address, Nearest Hospital, Weather Forecast (Simulated), Parking Instructions, and a detailed schedule grid.",
-        "PA: Gear & Load-in Checklist": "Create a categorized checklist for Load-in. Categories: Camera, Lighting, Audio, Grip, Crafty. Include a column for 'Checked Out' and 'Returned'.",
-        "PA: Location Scout Report": "Generate a Location Assessment Form. Sections: Lighting Conditions, Power Access (Outlets/Generators), Noise Pollution, Parking Capacity, Permit Requirements, Risk Factors.",
-        "PA: Crafty & Dietary Log": "Create a Craft Services plan based on a standard crew. Include a table for Dietary Restrictions (Vegan, GF, Nut Allergy protocols) and a shopping list for Morning, Lunch, and Afternoon slump.",
+    # A. IMAGE GENERATION BRANCH
+    if package_type == "CD: DALL-E 3 Concept Art Generator":
+        with st.spinner("🎨 Painting Concept Art..."):
+            try:
+                # 1. Optimize Prompt first
+                design_prompt = client.chat.completions.create(
+                    model="gpt-4o",
+                    messages=[{"role": "system", "content": f"Create a perfect DALL-E 3 prompt for: {final_objective}. Style: Cinematic, Photorealistic."}]
+                ).choices[0].message.content
+                
+                # 2. Generate Image
+                image_response = client.images.generate(
+                    model="dall-e-3",
+                    prompt=design_prompt,
+                    size="1024x1024",
+                    quality="standard",
+                    n=1,
+                )
+                image_url = image_response.data[0].url
+                st.session_state.generated_image = image_url
+                st.session_state.generated_text = f"**Prompt Used:** {design_prompt}"
+            except Exception as e:
+                st.error(f"Image Error: {e}")
+
+    # B. TEXT GENERATION BRANCH
+    else:
+        prompts = {
+            "PA: Daily Call Sheet": "Generate a Call Sheet Table (Crew Call, Talent Call, Nearest Hospital, Lunch Time).",
+            "PA: Gear & Load-in Checklist": "Checklist for Camera, Audio, G&E, Crafty.",
+            "PA: Location Scout Report": "Assessment: Power, Noise, Parking, Risk.",
+            "CD: Visual Style Guide (Mood Board)": "Color Palette (Hex), Lighting Style, Set Textures.",
+            "Digital: Product Launch (Web/App)": "FRD Outline, Tech Stack, Runbook.",
+            "Digital: Jira User Stories": "CSV Table: Summary, Description, Acceptance Criteria.",
+            "Social: Multi-Platform Blast": "3 Posts (IG/LinkedIn/X) in code blocks.",
+            "Exec: Strategy Deck Outline": "BLUF, SWOT, Roadmap."
+        }
         
-        # CD PROTOCOLS
-        "CD: Visual Style Guide (Mood Board)": "Define the Visual Language. Sections: Color Palette (Hex Codes), Lighting References (e.g., 'Rembrandt', 'High Key'), Camera Movement Philosophy, and Set Design Textures.",
-        "CD: AI Image Prompts (Midjourney/DALL-E)": "Generate 5 highly detailed AI Image Prompts to visualize the concept. Format: '/imagine prompt: [Subject] + [Art Style] + [Lighting] + [Aspect Ratio]'.",
-        "CD: Script Polish & Tone Check": "Act as a Script Doctor. Review the input for tonal consistency. Suggest 3 specific dialogue or scene improvements to elevate the emotional impact.",
+        system_prompt = f"""
+        ROLE: Production Studio AI.
+        TASK: Generate a {depth} {package_type}.
+        CONTEXT: {final_objective}
+        DATA: {file_context}
+        INSTRUCTIONS: {prompts.get(package_type, "Standard Gen")}
+        """
         
-        # DIGITAL & CONTENT (Legacy)
-        "Digital: Product Launch (Web/App)": "Generate FRD Outline, Tech Stack, and Go-Live Runbook.",
-        "Digital: Jira User Stories": "Table of User Stories: Summary, Description, Acceptance Criteria, Priority.",
-        "Digital: SEO Strategy": "Keyword Cluster, Meta Titles, URL Structure.",
-        "Social: Multi-Platform Blast": "3 posts (IG, LinkedIn, X) in code blocks.",
-        "Exec: Strategy Deck Outline": "BLUF, SWOT, Roadmap."
-    }
+        with st.spinner("🧠 Analyzing..."):
+            try:
+                response = client.chat.completions.create(
+                    model="gpt-4o",
+                    messages=[{"role": "system", "content": system_prompt}]
+                )
+                st.session_state.generated_text = response.choices[0].message.content
+                st.session_state.generated_image = None
+            except Exception as e:
+                st.error(f"Text Error: {e}")
+
+# --- 7. OUTPUT DISPLAY ---
+if st.session_state.generated_image:
+    st.write("---")
+    st.image(st.session_state.generated_image, caption="Generated Concept Art")
+    st.info("Tip: Long-press the image to save it to Photos.")
+
+if st.session_state.generated_text:
+    st.write("---")
+    st.markdown(st.session_state.generated_text)
     
-    # D. The Brain
-    system_prompt = f"""
-    ROLE: Production Studio AI (PA, CD, & Digital Lead).
-    TASK: Generate a {depth} {package_type}.
-    
-    CONTEXT:
-    - Objective: {final_objective}
-    - Client/Audience: {audience}
-    
-    DATA:
-    {file_context}
-    
-    INSTRUCTIONS:
-    - Protocol: {prompts[package_type]}
-    - Format: Clean Markdown. Use Tables heavily.
-    - Tone: Professional, industry-standard terminology.
-    """
-    
-    with st.spinner("🧠 Analyzing Production Data..."):
+    # DUAL EXPORT OPTIONS
+    col1, col2 = st.columns(2)
+    with col1:
+        st.download_button("💾 Download .MD", st.session_state.generated_text, "output.md")
+    with col2:
+        # PDF GENERATION ON THE FLY
         try:
-            response = client.chat.completions.create(
-                model="gpt-4o",
-                messages=[{"role": "system", "content": system_prompt}]
-            )
-            result = response.choices[0].message.content
-            
-            st.write("---")
-            st.success("✅ **Asset Generated**")
-            st.markdown(result)
-            
-            # Download
-            timestamp = pd.Timestamp.now().strftime("%Y%m%d_%H%M")
-            st.download_button("💾 Save to Files", result, f"StudioV10_Output_{timestamp}.md")
-            
+            pdf_bytes = create_pdf(st.session_state.generated_text)
+            st.download_button("📄 Download PDF", pdf_bytes, "output.pdf", mime="application/pdf")
         except Exception as e:
-            st.error(f"Error: {e}")
+            st.warning("PDF unavailable for this text (Special characters). Use MD.")
