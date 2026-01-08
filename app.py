@@ -15,7 +15,7 @@ from datetime import datetime
 import concurrent.futures
 
 # --- 1. CONFIGURATION ---
-st.set_page_config(page_title="Studio V28: Grandmaster", layout="wide", page_icon="♟️")
+st.set_page_config(page_title="Studio V29: Production Ready", layout="wide", page_icon="🎬")
 
 st.markdown("""
     <style>
@@ -100,13 +100,54 @@ def generate_art(prompt):
         return client.images.generate(model="dall-e-3", prompt=art_p, size="1024x1024").data[0].url
     except: return None
 
-# --- 4. THE GRANDMASTER LOGIC (Pre-Cortex + Tree of Thoughts) ---
+# --- 4. PRODUCTION DOCS ENGINE (New Feature) ---
+def create_production_docs(mission, strategy_text):
+    """Generates a .docx Production Pack."""
+    doc = Document()
+    doc.add_heading(f'PRODUCTION PACK: {mission}', 0)
+    
+    # 1. Talent Release
+    doc.add_heading('1. Talent Appearance Release', level=1)
+    doc.add_paragraph(f"PROJECT: {mission}")
+    doc.add_paragraph("I hereby grant the Producer the right to use my name, likeness, and voice in the project named above...")
+    doc.add_paragraph("_" * 40 + "\nSignature / Date")
+    
+    # 2. Location Release
+    doc.add_page_break()
+    doc.add_heading('2. Location Agreement', level=1)
+    doc.add_paragraph(f"PROJECT: {mission}")
+    doc.add_paragraph("The Property Owner grants permission to the Producer to enter and film on the premises located at: _________________")
+    doc.add_paragraph("_" * 40 + "\nOwner Signature / Date")
+    
+    # 3. Call Sheet Template
+    doc.add_page_break()
+    doc.add_heading('3. Production Call Sheet', level=1)
+    table = doc.add_table(rows=5, cols=2)
+    table.style = 'Table Grid'
+    table.rows[0].cells[0].text = "PRODUCTION TITLE:"
+    table.rows[0].cells[1].text = mission
+    table.rows[1].cells[0].text = "CALL TIME:"
+    table.rows[1].cells[1].text = "07:00 AM"
+    table.rows[2].cells[0].text = "LOCATION:"
+    table.rows[2].cells[1].text = "TBD"
+    table.rows[3].cells[0].text = "HOSPITAL:"
+    table.rows[3].cells[1].text = "Nearest Emergency Room"
+    
+    # 4. Shot List Extracted from Strategy
+    doc.add_page_break()
+    doc.add_heading('4. Preliminary Shot List', level=1)
+    doc.add_paragraph(strategy_text[:1000]) # Quick context
+    
+    out = io.BytesIO()
+    doc.save(out)
+    return out.getvalue()
+
+# --- 5. THE GRANDMASTER LOGIC ---
 
 def optimize_prompt(raw_mission):
-    """The Pre-Cortex: Rewrites lazy user prompts into mega-prompts."""
     resp = client.chat.completions.create(
         model="gpt-4o",
-        messages=[{"role": "system", "content": f"ACT AS: Prompt Engineer. REWRITE this objective to be highly specific, professional, and actionable. RETURN ONLY THE REWRITTEN PROMPT. Input: {raw_mission}"}]
+        messages=[{"role": "system", "content": f"ACT AS: Prompt Engineer. REWRITE to be actionable. Input: {raw_mission}"}]
     )
     return resp.choices[0].message.content
 
@@ -115,20 +156,16 @@ def run_grandmaster_swarm(mission, protocol, context, image_data, voice_transcri
     
     with st.status(f"♟️ Grandmaster Engine ({depth})...", expanded=True) as status:
         
-        # --- PHASE 0: PRE-CORTEX (Prompt Optimization) ---
-        status.write("🧠 Phase 0: Optimizing Objective (Pre-Cortex)...")
+        status.write("🧠 Phase 0: Optimizing Objective...")
         optimized_mission = optimize_prompt(mission) if depth != "Draft" else mission
-        st.caption(f"✨ Optimized to: {optimized_mission[:100]}...")
 
-        # --- PHASE 1: SENSORY (Parallel) ---
-        status.write("👁️ Phase 1: Sensory Uplink (Web + Vision)...")
+        status.write("👁️ Phase 1: Sensory Uplink...")
         with concurrent.futures.ThreadPoolExecutor() as executor:
             future_web = executor.submit(web_search, f"{optimized_mission} {protocol} trends")
             future_vis = executor.submit(analyze_vision, image_data, f"Analyze for {protocol} context.")
             intel = future_web.result()
             visual_analysis = future_vis.result()
             
-        # --- PHASE 2: STRATEGY (Tree of Thoughts if Deep Dive) ---
         status.write(f"🧠 Phase 2: Strategic Synthesis...")
         
         protocol_prompts = {
@@ -146,36 +183,29 @@ def run_grandmaster_swarm(mission, protocol, context, image_data, voice_transcri
         
         final_strategy = ""
 
-        # A. TREE OF THOUGHTS (Only for Deep Dive)
         if depth == "Deep Dive":
-            status.write("🌳 Phase 2b: Tree of Thoughts (Generating 3 Divergent Paths)...")
-            
-            # Generate 3 Angles in Parallel
-            angles = ["Conservative/Safe", "Aggressive/Viral", "Data-Driven/Logical"]
+            status.write("🌳 Phase 2b: Tree of Thoughts...")
+            angles = ["Conservative", "Aggressive", "Data-Driven"]
             drafts = []
-            
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 futures = {executor.submit(client.chat.completions.create, model="gpt-4o", messages=[{"role": "system", "content": f"Generate Strategy. ANGLE: {angle}. Context: {full_context}"}]): angle for angle in angles}
                 for future in concurrent.futures.as_completed(futures):
                     drafts.append(future.result().choices[0].message.content)
             
-            # Synthesis (The Arbiter)
-            status.write("⚖️ Phase 2c: The Arbiter (Synthesizing Best Path)...")
+            status.write("⚖️ Phase 2c: The Arbiter...")
             arbiter_resp = client.chat.completions.create(
                 model="gpt-4o",
-                messages=[{"role": "system", "content": f"You are the Grandmaster Strategist. Review these 3 drafts. Merge the BEST elements of each into one Master Strategy. \n\nDRAFT 1: {drafts[0]}\n\nDRAFT 2: {drafts[1]}\n\nDRAFT 3: {drafts[2]}"}]
+                messages=[{"role": "system", "content": f"Synthesize these 3 drafts into one Master Strategy.\n\nDRAFTS: {drafts}"}]
             )
             final_strategy = arbiter_resp.choices[0].message.content
 
-        # B. STANDARD/DRAFT (Linear or Loop)
         else:
             draft_resp = client.chat.completions.create(
                 model="gpt-4o",
-                messages=[{"role": "system", "content": "You are an Elite Media Strategist. Output Markdown."}, {"role": "user", "content": full_context}]
+                messages=[{"role": "system", "content": "Output Markdown."}, {"role": "user", "content": full_context}]
             )
             current_draft = draft_resp.choices[0].message.content
             
-            # Oracle Loop (Self-Correction) for Standard
             if depth == "Standard":
                 score_resp = client.chat.completions.create(
                     model="gpt-4o",
@@ -183,10 +213,10 @@ def run_grandmaster_swarm(mission, protocol, context, image_data, voice_transcri
                 )
                 try: 
                     if int(score_resp.choices[0].message.content.strip()) < 90:
-                        status.write("🔄 Refining Strategy (Self-Correction)...")
+                        status.write("🔄 Refining Strategy...")
                         refine_resp = client.chat.completions.create(
                             model="gpt-4o",
-                            messages=[{"role": "system", "content": "Refine and improve this strategy."}, {"role": "user", "content": current_draft}]
+                            messages=[{"role": "system", "content": "Refine and improve."}, {"role": "user", "content": current_draft}]
                         )
                         current_draft = refine_resp.choices[0].message.content
                 except: pass
@@ -195,14 +225,14 @@ def run_grandmaster_swarm(mission, protocol, context, image_data, voice_transcri
 
         results['Master_Strategy.md'] = final_strategy
         
-        # --- PHASE 3: ARTIFACTS (Parallel) ---
+        # --- PHASE 3: ARTIFACTS ---
         if req_outputs:
             status.write("📦 Phase 3: Manufacturing Assets...")
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 futures = {}
                 
                 if "Simulation" in req_outputs:
-                    futures['sim'] = executor.submit(client.chat.completions.create, model="gpt-4o", messages=[{"role": "system", "content": f"Simulate focus group reaction to: {final_strategy[:1000]}"}])
+                    futures['sim'] = executor.submit(client.chat.completions.create, model="gpt-4o", messages=[{"role": "system", "content": f"Simulate focus group: {final_strategy[:1000]}"}])
                 
                 if "PPTX" in req_outputs:
                     futures['pptx'] = executor.submit(client.chat.completions.create, model="gpt-4o", response_format={ "type": "json_object" }, messages=[{"role": "system", "content": f"Convert to 5 slides JSON: {final_strategy[:2000]}"}])
@@ -211,13 +241,17 @@ def run_grandmaster_swarm(mission, protocol, context, image_data, voice_transcri
                     futures['ics'] = executor.submit(client.chat.completions.create, model="gpt-4o", response_format={ "type": "json_object" }, messages=[{"role": "system", "content": f"Extract dates to JSON: {final_strategy[:2000]}"}])
                 
                 if "Audio" in req_outputs:
-                    futures['mp3'] = executor.submit(create_audio, f"Briefing for {protocol}. {final_strategy[:500]}")
+                    futures['mp3'] = executor.submit(create_audio, f"Briefing. {final_strategy[:500]}")
                 
                 if "Art" in req_outputs:
                     futures['art'] = executor.submit(generate_art, f"{protocol} {mission}")
 
                 if "CSV" in req_outputs:
                     futures['csv'] = executor.submit(client.chat.completions.create, model="gpt-4o", messages=[{"role": "system", "content": f"Extract CSV data table: {final_strategy[:2000]}"}])
+
+                # NEW: PRODUCTION DOCS
+                if "Prod Docs (.docx)" in req_outputs:
+                    futures['docx'] = executor.submit(create_production_docs, mission, final_strategy)
 
                 for key, future in futures.items():
                     try:
@@ -228,31 +262,26 @@ def run_grandmaster_swarm(mission, protocol, context, image_data, voice_transcri
                         elif key == 'mp3': results['Audio_Brief.mp3'] = res
                         elif key == 'art': results['Concept_Art_URL'] = res
                         elif key == 'csv': results['Project_Data.csv'] = res.choices[0].message.content
+                        elif key == 'docx': results['Production_Pack.docx'] = res
                     except: pass
 
         status.update(label="✅ Grandmaster Cycle Complete", state="complete")
         
     return results
 
-# --- 5. INTERFACE ---
+# --- 6. INTERFACE ---
 with st.sidebar:
     st.title("🧬 Brand DNA")
     brand_name = st.text_input("Org Name", placeholder="Apex Media")
     north_star = st.text_area("North Star Goal", placeholder="Growth...")
 
-st.title("♟️ Studio V28: The Grandmaster")
+st.title("🎬 Studio V29: Production Ready")
 
-# UNIFIED INPUT
 tab_text, tab_vis, tab_voice = st.tabs(["📝 Mission Control", "👁️ Vision Uplink", "🎙️ Voice Command"])
 with tab_text:
     protocol = st.selectbox("Select Protocol:", [
-        "Custom Mission",
-        "🚀 Campaign Launch",
-        "📢 Crisis Response",
-        "🎥 Video Production",
-        "👁️ Scout: Safety",
-        "👁️ Director: Vibe",
-        "💻 Digital Stack"
+        "Custom Mission", "🚀 Campaign Launch", "📢 Crisis Response", 
+        "🎥 Video Production", "👁️ Scout: Safety", "👁️ Director: Vibe", "💻 Digital Stack"
     ])
     mission_input = st.text_area("Objective", placeholder="e.g. Launch Q3 Strategy...", height=100)
     uploaded_file = st.file_uploader("Intel Files", type=["pdf", "docx", "txt"])
@@ -269,20 +298,14 @@ st.divider()
 col1, col2 = st.columns([1, 1])
 with col1:
     st.subheader("🎚️ Intelligence Level")
-    # UPDATED: Replaced "Depth" with "Intelligence Level" to reflect new logic
-    depth_setting = st.select_slider(
-        "Reasoning Depth", 
-        options=["Draft", "Standard", "Deep Dive"], 
-        value="Standard",
-        help="Draft: Fast linear. Standard: Self-correcting. Deep Dive: Tree of Thoughts (3 parallel strategies)."
-    )
+    depth_setting = st.select_slider("Reasoning Depth", options=["Draft", "Standard", "Deep Dive"], value="Standard")
 
 with col2:
     st.subheader("📦 Output Selection")
     selected_outputs = st.multiselect(
         "Select Artifacts:",
-        ["Simulation", "PPTX", "Calendar", "Audio", "Art", "CSV"],
-        default=["PPTX", "Calendar", "Art"]
+        ["Simulation", "PPTX", "Calendar", "Audio", "Art", "CSV", "Prod Docs (.docx)"],
+        default=["PPTX", "Calendar", "Prod Docs (.docx)"]
     )
 
 if st.button("🚀 IGNITE ENGINE", type="primary", use_container_width=True):
@@ -302,7 +325,6 @@ if st.button("🚀 IGNITE ENGINE", type="primary", use_container_width=True):
     else:
         st.warning("⚠️ Input Required")
 
-# --- 6. OUTPUTS & REFINEMENT ---
 if st.session_state.current_result:
     st.divider()
     latest = st.session_state.current_result
@@ -318,15 +340,11 @@ if st.session_state.current_result:
         with st.spinner("🔄 Refining..."):
             new_resp = client.chat.completions.create(
                 model="gpt-4o",
-                messages=[
-                    {"role": "assistant", "content": latest['Master_Strategy.md']},
-                    {"role": "user", "content": f"Modify: {refine_q}"}
-                ]
+                messages=[{"role": "assistant", "content": latest['Master_Strategy.md']}, {"role": "user", "content": f"Modify: {refine_q}"}]
             )
             st.session_state.current_result['Master_Strategy.md'] = new_resp.choices[0].message.content
             st.rerun()
 
-    # DYNAMIC DASHBOARD
     tabs = ["📦 Download"]
     if "Simulation_Log.md" in latest: tabs.append("👥 Sim")
     if "Audio_Brief.mp3" in latest: tabs.append("🎧 Audio")
@@ -338,14 +356,14 @@ if st.session_state.current_result:
         zip_buffer = io.BytesIO()
         with zipfile.ZipFile(zip_buffer, "a", zipfile.ZIP_DEFLATED, False) as zip_file:
             for key, val in latest.items():
-                if key.endswith(('.pptx', '.mp3', '.ics')): zip_file.writestr(key, val)
+                if key.endswith(('.pptx', '.mp3', '.ics', '.docx')): zip_file.writestr(key, val)
                 elif key.endswith('.md') or key.endswith('.csv'): 
                     zip_file.writestr(key, val)
                     if key.endswith('.md'):
                         try: zip_file.writestr(key.replace('.md', '.pdf'), create_pdf(val))
                         except: pass
         
-        st.download_button("📦 Download Grandmaster Bundle (.ZIP)", zip_buffer.getvalue(), "Grandmaster_Assets.zip", "application/zip", type="primary", use_container_width=True)
+        st.download_button("📦 Download Production Bundle (.ZIP)", zip_buffer.getvalue(), "Production_Assets.zip", "application/zip", type="primary", use_container_width=True)
 
     if "👥 Sim" in tabs:
         with active_tabs[tabs.index("👥 Sim")]: st.info(latest['Simulation_Log.md'])
