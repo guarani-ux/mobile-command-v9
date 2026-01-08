@@ -7,9 +7,9 @@ from fpdf import FPDF
 import base64
 
 # --- 1. CONFIGURATION ---
-st.set_page_config(page_title="Studio V12: Panopticon", layout="centered", page_icon="👁️")
+st.set_page_config(page_title="Studio V13: Strategy Core", layout="centered", page_icon="👁️")
 
-# CSS: High-Contrast "Nuclear" Aesthetic
+# CSS: High-Contrast & Mobile Optimization
 st.markdown("""
     <style>
     .stTextArea textarea {font-size: 16px !important;}
@@ -18,7 +18,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-st.title("👁️ Studio V12: Panopticon")
+st.title("👁️ Studio V13: Strategy Core")
 
 # --- 2. AUTHENTICATION ---
 if "OPENAI_API_KEY" in st.secrets:
@@ -67,16 +67,22 @@ def create_pdf(text):
 if "output_log" not in st.session_state:
     st.session_state.output_log = []
 
-# --- 5. THE PANOPTICON INTERFACE ---
+# --- 5. THE INTERFACE ---
 
-st.info("👇 **Phase 1: Sensory Input**")
+st.info("👇 **Phase 1: Strategic Input**")
 
-# TAB SYSTEM for switching between TEXT input and VISION input
-tab1, tab2 = st.tabs(["📝 Text/File Intel", "👁️ Visual Intel (The Eye)"])
+# TAB SYSTEM: Split Text Intel vs Visual Intel
+tab1, tab2 = st.tabs(["📝 Strategy Briefing", "👁️ Visual Intel (The Eye)"])
 
 with tab1:
-    uploaded_file = st.file_uploader("Upload Brief/Script", type=["pdf", "docx", "txt", "csv"])
-    text_context = st.text_area("Context:", placeholder="e.g. Scouting report for warehouse location...", height=100)
+    # --- DUAL GOAL INPUT SYSTEM ---
+    st.write("**1. The Campaign (Tactical)**")
+    campaign_objective = st.text_area("What are we building/launching?", placeholder="e.g. A 30-second YouTube ad series...", height=100)
+    
+    st.write("**2. The Organization (Strategic)**")
+    org_goal = st.text_input("What is the larger business goal?", placeholder="e.g. Increase Q3 Revenue by 10% OR Brand Awareness")
+    
+    uploaded_file = st.file_uploader("📂 Upload Supporting Docs", type=["pdf", "docx", "txt", "csv"])
 
 with tab2:
     st.warning("⚠️ **Camera Active.** Analyze physical reality.")
@@ -87,15 +93,18 @@ with tab2:
 st.write("---")
 st.info("👇 **Phase 2: Protocol Selection**")
 
-# ADVANCED "SWARM" PROTOCOLS
+# PROTOCOL LIST
 protocol = st.selectbox("Activate Protocol:", [
-    # VISUAL PROTOCOLS (New)
+    # --- STRATEGY ---
+    "📝 Strategy: Strategic Project Brief (Goal-Aligned)",
+    
+    # --- VISUAL ---
     "👁️ Scout: Location Safety & Logistics Analysis",
     "👁️ Director: Set Vibe & Lighting Critique",
     "👁️ Stylist: Wardrobe & Color Analysis",
     "👁️ OCR: Digitize Paper Contract/Script",
     
-    # GENERATIVE PROTOCOLS (Legacy)
+    # --- CREATIVE / EXECUTION ---
     "🎨 CD: DALL-E 3 Concept Art",
     "📄 PA: Daily Call Sheet (PDF)",
     "📋 PA: Load-in Checklist",
@@ -106,23 +115,19 @@ protocol = st.selectbox("Activate Protocol:", [
 # --- 6. EXECUTION ENGINE ---
 if st.button("🚀 EXECUTE", type="primary", use_container_width=True):
     
-    # A. VISUAL ANALYSIS PATH (The Nuclear Leap)
-    if camera_img or uploaded_img:
+    # A. VISUAL ANALYSIS PATH
+    if (camera_img or uploaded_img) and "👁️" in protocol:
         active_img = camera_img if camera_img else uploaded_img
         base64_image = encode_image(active_img)
         
         with st.spinner("👁️ The Eye is Analyzing..."):
-            
-            # Specialized Visual System Prompts
             v_prompts = {
-                "👁️ Scout: Location Safety & Logistics Analysis": "Act as a veteran Location Manager. Analyze this image for: 1. Power access points, 2. Trip/Fall hazards, 3. Lighting conditions, 4. Parking/Load-in feasibility.",
-                "👁️ Director: Set Vibe & Lighting Critique": "Act as a Cinematographer. Analyze the lighting in this shot. Describe the current color temperature, practical sources, and suggest 3 ways to enhance the mood.",
-                "👁️ Stylist: Wardrobe & Color Analysis": "Act as a Costume Designer. Analyze the clothing/colors in this image. Do they clash? What is the emotional tone? Suggest accessories.",
-                "👁️ OCR: Digitize Paper Contract/Script": "Transcribe this document exactly into Markdown. Fix any obvious typos. Summarize the key risks at the bottom."
+                "👁️ Scout: Location Safety & Logistics Analysis": "Act as a veteran Location Manager. Analyze this image for: 1. Power access, 2. Trip hazards, 3. Lighting conditions, 4. Load-in feasibility.",
+                "👁️ Director: Set Vibe & Lighting Critique": "Act as a Cinematographer. Analyze the lighting. Describe color temperature, practical sources, and suggest 3 enhancements.",
+                "👁️ Stylist: Wardrobe & Color Analysis": "Act as a Costume Designer. Analyze clothing/colors. Do they clash? What is the tone? Suggest accessories.",
+                "👁️ OCR: Digitize Paper Contract/Script": "Transcribe this document exactly. Fix typos. Summarize key points at the bottom."
             }
-            
             default_v_prompt = f"Analyze this image. Context: {visual_prompt}"
-            system_v_instruction = v_prompts.get(protocol, default_v_prompt)
             
             response = client.chat.completions.create(
                 model="gpt-4o",
@@ -130,7 +135,7 @@ if st.button("🚀 EXECUTE", type="primary", use_container_width=True):
                     {
                         "role": "user",
                         "content": [
-                            {"type": "text", "text": system_v_instruction},
+                            {"type": "text", "text": v_prompts.get(protocol, default_v_prompt)},
                             {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}},
                         ],
                     }
@@ -138,24 +143,24 @@ if st.button("🚀 EXECUTE", type="primary", use_container_width=True):
                 max_tokens=1000,
             )
             result = response.choices[0].message.content
-            st.session_state.output_log.append(result)
             
             st.write("---")
             st.image(active_img, caption="Target Acquired", width=300)
             st.markdown(result)
-            
-            # PDF Export for Visual Reports
             try:
                 pdf_bytes = create_pdf(result)
-                st.download_button("📄 Download Visual Report", pdf_bytes, "visual_intel.pdf", mime="application/pdf")
+                st.download_button("📄 Download Report (PDF)", pdf_bytes, "visual_intel.pdf", mime="application/pdf")
             except:
                 st.download_button("💾 Download Text", result, "visual_intel.md")
 
-    # B. STANDARD GENERATIVE PATH (Legacy V11)
+    # B. TEXT / GENERATIVE PATH
     else:
-        # (This is the text-only logic from V11)
         file_content = read_file(uploaded_file)
-        full_context = f"{text_context}\nData: {file_content}"
+        full_context = f"""
+        CAMPAIGN OBJECTIVE (Tactical): {campaign_objective}
+        ORGANIZATION GOAL (Strategic): {org_goal}
+        FILE DATA: {file_content}
+        """
         
         if protocol == "🎨 CD: DALL-E 3 Concept Art":
             with st.spinner("🎨 Generating Art..."):
@@ -166,12 +171,47 @@ if st.button("🚀 EXECUTE", type="primary", use_container_width=True):
                 
                 img_resp = client.images.generate(model="dall-e-3", prompt=design_prompt, size="1024x1024")
                 st.image(img_resp.data[0].url)
+        
         else:
-            with st.spinner("🧠 Thinking..."):
+            # --- UPDATED PROMPTS WITH ALIGNMENT CHECK ---
+            text_prompts = {
+                "📝 Strategy: Strategic Project Brief (Goal-Aligned)": """
+                Generate a Master Project Brief.
+                CRITICAL STEP: First, evaluate if the 'Campaign Objective' actually supports the 'Organization Goal'.
+                - If YES: Proceed.
+                - If NO/WEAK: Include a '⚠️ STRATEGIC GAP WARNING' section at the top explaining the misalignment.
+                
+                Structure:
+                1. STRATEGIC ALIGNMENT: How this campaign moves the Org Goal.
+                2. EXECUTIVE SUMMARY (BLUF).
+                3. TACTICAL DELIVERABLES (The 'What').
+                4. SUCCESS METRICS (KPIs - tied to Org Goal).
+                5. RISKS & MITIGATION.
+                6. TIMELINE.
+                """,
+                "📄 PA: Daily Call Sheet (PDF)": "Generate a Call Sheet Table (Crew Call, Talent Call, Hospital, Lunch).",
+                "📋 PA: Load-in Checklist": "Checklist for Camera, Audio, G&E, Crafty.",
+                "🚀 Digital: Product Launch Stack": "FRD Outline, Tech Stack, Runbook.",
+                "💼 Exec: Strategy Deck": "BLUF, SWOT, Roadmap."
+            }
+            
+            system_instr = text_prompts.get(protocol, "Generate a detailed professional response.")
+            
+            with st.spinner("🧠 Strategizing..."):
                 resp = client.chat.completions.create(
                     model="gpt-4o",
-                    messages=[{"role": "system", "content": f"Execute Protocol: {protocol}. Context: {full_context}"}]
+                    messages=[{"role": "system", "content": f"ROLE: Elite Strategist. {system_instr} \n\nCONTEXT: {full_context}"}]
                 )
                 txt = resp.choices[0].message.content
                 st.markdown(txt)
-                st.download_button("💾 Download", txt, "output.md")
+                
+                # DUAL EXPORT
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.download_button("💾 Download .MD", txt, "output.md")
+                with col2:
+                    try:
+                        pdf_bytes = create_pdf(txt)
+                        st.download_button("📄 Download PDF", pdf_bytes, "output.pdf", mime="application/pdf")
+                    except:
+                        st.warning("PDF Generation failed (Text encoding). Use MD.")
